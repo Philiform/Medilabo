@@ -1,0 +1,13 @@
+#.gitignore
+
+# DOSSIERS ET FICHIERS
+**/mvnw*
+**/.mvn/
+**/.classpath
+**/.factorypath
+**/.project
+**/.settings/
+**/target/
+
+# FICHIERS POUR LE SERVEUR DE CONFIGURATION
+medilabo-config-repo
