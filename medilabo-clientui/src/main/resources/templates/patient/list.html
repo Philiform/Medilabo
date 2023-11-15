@@ -1,0 +1,79 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Medilabo</title>
+
+	<link rel="stylesheet" type="text/css" href="http://localhost:8080/css/bootstrap.min.css" />
+	<link rel="stylesheet"
+	href="/webjars/bootstrap-icons/1.10.3/font/bootstrap-icons.css">
+
+</head>
+
+<body>
+
+
+	<div class="container">
+
+		<h1 class="text-center m-5">M&eacute;dilabo Solutions</h1>
+
+		<div class="row my-4">
+<!--	USERNAME -->
+			<div class="text-end" th:text="'Username: ' + ${username}"></div>
+<!--	BUTTON: LOGOUT -->
+			<div class="text-end">
+				<a class="btn btn-primary" th:href="@{/logout}">
+					Logout
+				</a>
+			</div>
+		</div>
+
+		<h2 class="text-center mb-3">Patients List</h2>
+
+<!--	TABLE: SHOW list patient -->
+		<div class="row px-0 border border-dark">
+			<form th:object="${patients}" class="px-0">
+				<table class="table table-striped table-borderless">
+					<thead>
+						<tr class="text-center text-light" bgcolor="198754">
+							<th>Last name</th>
+							<th>First name</th>
+							<th></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="p:${patients}" style="vertical-align: middle;">
+							<td th:text="${p.lastName}"></td>
+							<td th:text="${p.firstName}"></td>
+
+							<td class="col-1" th:align="center">
+								<a class="btn btn-success" th:href="@{'/patient/' + ${p.id}}">
+									Infos
+								</a>
+							<td class="col-1" th:align="center">
+								<a onclick="return confirm('Are you sure you want to delete this person ?')"
+									class="btn btn-danger"
+									th:href="@{'/patient/' + ${p.id} + '/delete'}">
+									<i class="bi bi-trash"></i>
+								</a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</form>
+		</div>
+
+<!--	BUTTON: ADD new patient -->
+		<div class="row mt-4 justify-content-center">
+			<div class="text-center">
+				<a class="btn btn-success" th:href="@{/patient/add}">
+					Add New Patient
+				</a>
+			</div>
+		</div>
+
+	</div>
+</body>
+
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Medilabo</title>
+
+	<link rel="stylesheet" type="text/css" href="http://localhost:8080/css/bootstrap.min.css" />
+
+</head>
+
+<body>
+
+
+	<div class="container">
+
+		<h1 class="text-center m-5">M&eacute;dilabo Solutions</h1>
+
+		<h2 class="text-center mb-3">New Patient</h2>
+	
+<!--	FORM: save new patient -->
+		<div class="row bg-light">
+			<form method="post" th:action="@{/patient/save}" th:object="${patient}">
+				<div class="row px-5 py-4 justify-content-center align-items-center">
+					<div class="col-5 mb-3">
+						<label>Last name</label>
+						<input type="text" th:field="*{lastName}" required>
+					</div>
+					<div class="col-5 mb-3">
+						<label>First name</label>
+						<input type="text" th:field="*{firstName}" required>
+					</div>
+					<div class="col-5 mb-3">
+						<label>Birthday</label>
+						<input type="text" th:field="*{birthday}" placeholder="31/12/2023"required>
+					</div>
+					<div class="col-5 mb-3">
+						<label>Genre</label>
+						<div class="col-12">
+							<input type="radio" name ="genre" id="choise1" th:field="*{genre}" value="F" required>
+							<label for="choise1">Woman</label>
+						</div>
+
+						<div class="col-12">
+							<input type="radio" name ="genre" id="choise2" th:field="*{genre}" value="M">
+							<label for="choise2">Man</label>
+						</div>
+					</div>
+					<div class="col-5 mb-3">
+						<label>Address</label>
+						<input type="text" th:field="*{address}">
+					</div>
+					<div class="col-5 mb-3">
+						<label>Phone number</label>
+						<input type="text" th:field="*{phoneNumber}">
+					</div>
+					<div class="col-3 justify-content-center">
+						<button type="submit" class="btn btn-primary mt-4 px-2 textBold">Save</button>
+					</div>
+				</div>
+			</form>
+		</div>
+
+<!--	BUTTON: RETURN list patient -->
+		<div class="row mt-4 justify-content-center">
+			<div class="col-3">
+			<a class="btn btn-success" th:href="@{/patient/list}">
+				Patient List
+			</a>
+			</div>
+		</div>
+
+	</div>
+</body>
+
+</html>
