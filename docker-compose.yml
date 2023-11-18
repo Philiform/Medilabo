@@ -1,0 +1,267 @@
+version: '3'
+services:
+#============= config-server =============
+  config-server:
+    image: medilabo-config-server
+    container_name: medilabo-config-server
+    hostname: $CONFIG_SERVER
+    restart: always
+    env_file: .env
+    environment:
+      - MEDILABO_CONFIG_REPOSITORY=$MEDILABO_CONFIG_REPOSITORY
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - EUREKA_SERVER=$EUREKA_SERVER
+      - EUREKA_SERVER_PORT=$EUREKA_SERVER_PORT
+      - GATEWAY_PORT=$GATEWAY_PORT
+      - SPRING_SECURITY_USER_NAME=$SPRING_SECURITY_USER_NAME
+      - SPRING_SECURITY_USER_PASSWORD=$SPRING_SECURITY_USER_PASSWORD
+    ports:
+      - "${CONFIG_SERVER_PORT}:${CONFIG_SERVER_PORT}"
+    networks:
+      - front-tier
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:${CONFIG_SERVER_PORT}/actuator/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+#============= eureka-server =============
+  eureka-server:
+    depends_on:
+      config-server:
+        condition: service_healthy
+        restart: true
+    image: medilabo-eureka-server
+    container_name: medilabo-eureka-server
+    hostname: $EUREKA_SERVER
+#    restart: always
+    env_file: .env
+    environment:
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - EUREKA_SERVER=$EUREKA_SERVER
+      - EUREKA_SERVER_PORT=$EUREKA_SERVER_PORT
+    ports:
+      - "${EUREKA_SERVER_PORT}:${EUREKA_SERVER_PORT}"
+    networks:
+      - front-tier
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:${EUREKA_SERVER_PORT}/actuator/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+#============= gateway =============
+  gateway:
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+        restart: true
+    image: medilabo-gateway
+    container_name: medilabo-gateway
+    hostname: $GATEWAY
+#    restart: always
+    env_file: .env
+    environment:
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - GATEWAY=$GATEWAY
+      - GATEWAY_PORT=$GATEWAY_PORT
+    ports:
+      - ${GATEWAY_PORT}:${GATEWAY_PORT}
+    networks:
+      - front-tier
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:${GATEWAY_PORT}/actuator/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+#============= mysqldb =============
+  mysqldb:
+    depends_on:
+      gateway:
+        condition: service_healthy
+        restart: true
+    image: mysql:8
+    container_name: medilabo-mysqldb
+    hostname: $MYSQLDB
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MYSQL_ROOT=$MYSQL_ROOT
+      - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+      - MYSQLDB_LOCAL_PORT=$MYSQLDB_LOCAL_PORT
+      - MYSQLDB_PORT=$MYSQLDB_PORT
+    ports:
+      - ${MYSQLDB_LOCAL_PORT}:${MYSQLDB_PORT}
+    volumes:
+      - mysqldb_data:/var/lib/mysql
+    networks:
+      - front-tier
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u $$MYSQL_ROOT --password=$$MYSQL_ROOT_PASSWORD
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+
+#============= microservice-patient =============
+  microservice-patient:
+    depends_on:
+      mysqldb:
+        condition: service_healthy
+        restart: true
+    image: medilabo-microservice-patient
+    container_name: medilabo-microservice-patient
+    hostname: $MICROSERVICE_PATIENT
+#    restart: always
+    env_file: .env
+    environment:
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - MICROSERVICE_PATIENT=$MICROSERVICE_PATIENT
+      - MICROSERVICE_PATIENT_PORT=$MICROSERVICE_PATIENT_PORT
+      - MYSQLDB=mysqldb
+      - MYSQLDB_DATABASE=$MYSQLDB_DATABASE
+      - MYSQL_ROOT=$MYSQL_ROOT
+      - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+      - MYSQLDB_PORT=$MYSQLDB_PORT
+      - JPA_SHOW_SQL=$JPA_SHOW_SQL
+    ports:
+      - ${MICROSERVICE_PATIENT_PORT}:${MICROSERVICE_PATIENT_PORT}
+    networks:
+      - front-tier
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:${MICROSERVICE_PATIENT_PORT}/actuator/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+#============= mongodb =============
+  mongodb:
+    depends_on:
+      gateway:
+        condition: service_healthy
+        restart: true
+    image: mongo
+    container_name: medilabo-mongodb
+    hostname: $MONGODB
+    env_file: .env
+    environment:
+      - MONGODB_DATABASE=$MONGODB_DATABASE
+      - MONGODB_ROOT_USER=$MONGODB_ROOT_USER
+      - MONGODB_ROOT_PASSWORD=$MONGODB_ROOT_PASSWORD
+      - MONGODB_USER=$MONGODB_USER
+      - MONGODB_PASSWORD=$MONGODB_PASSWORD
+      - MONGODB_PORT=$MONGODB_PORT
+    ports:
+      - ${MONGODB_PORT}:${MONGODB_PORT}
+    volumes:
+      - mongodb_data:/var/lib/mongo
+    networks:
+      - front-tier
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh "mongodb://localhost:$MONGODB_PORT/$MONGODB_DATABASE" --quiet
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+#============= microservice-notes-patients =============
+  microservice-notes-patients:
+    depends_on:
+      mongodb:
+        condition: service_healthy
+        restart: true
+    image: medilabo-microservice-notes-patients
+    container_name: medilabo-microservice-notes-patients
+    hostname: $MICROSERVICE_NOTES_PATIENTS
+#    restart: always
+    env_file: .env
+    environment:
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - MICROSERVICE_NOTES_PATIENTS=$MICROSERVICE_NOTES_PATIENTS
+      - MICROSERVICE_NOTES_PATIENTS_PORT=$MICROSERVICE_NOTES_PATIENTS_PORT
+      - MONGODB_DATABASE=$MONGODB_DATABASE
+      - MONGODB_USER=$MONGODB_USER
+      - MONGODB_PASSWORD=$MONGODB_PASSWORD
+      - MONGODB_PORT=$MONGODB_PORT
+    ports:
+      - ${MICROSERVICE_NOTES_PATIENTS_PORT}:${MICROSERVICE_NOTES_PATIENTS_PORT}
+    networks:
+      - front-tier
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:${MICROSERVICE_NOTES_PATIENTS_PORT}/actuator/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+#============= microservice-disease-assessment =============
+  microservice-disease-assessment:
+    depends_on:
+      microservice-patient:
+        condition: service_healthy
+        restart: true
+      microservice-notes-patients:
+        condition: service_healthy
+        restart: true
+    image: medilabo-microservice-disease-assessment
+    container_name: medilabo-microservice-disease-assessment
+    hostname: $MICROSERVICE_DISEASE_ASSESSMENT
+#    restart: always
+    env_file: .env
+    environment:
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - MICROSERVICE_DISEASE_ASSESSMENT=$MICROSERVICE_DISEASE_ASSESSMENT
+      - MICROSERVICE_DISEASE_ASSESSMENT_PORT=$MICROSERVICE_DISEASE_ASSESSMENT_PORT
+    ports:
+      - ${MICROSERVICE_DISEASE_ASSESSMENT_PORT}:${MICROSERVICE_DISEASE_ASSESSMENT_PORT}
+    networks:
+      - front-tier
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:${MICROSERVICE_DISEASE_ASSESSMENT_PORT}/actuator/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+#============= microservice-clientui =============
+  microservice-clientui:
+    depends_on:
+      microservice-disease-assessment:
+        condition: service_healthy
+        restart: true
+    image: medilabo-microservice-clientui
+    container_name: medilabo-microservice-clientui
+    hostname: $MICROSERVICE_CLIENTUI
+#    restart: always
+    env_file: .env
+    environment:
+      - CONFIG_SERVER=$CONFIG_SERVER
+      - CONFIG_SERVER_PORT=$CONFIG_SERVER_PORT
+      - MICROSERVICE_CLIENTUI_PORT=$MICROSERVICE_CLIENTUI_PORT
+    ports:
+      - ${MICROSERVICE_CLIENTUI_PORT}:${MICROSERVICE_CLIENTUI_PORT}
+    networks:
+      - front-tier
+
+#============= volumes =============
+volumes:
+  mysqldb_data: {}
+  mongodb_data: {}
+
+#============= networks =============
+networks:
+  front-tier:
+    name: custom_frontend
+      
